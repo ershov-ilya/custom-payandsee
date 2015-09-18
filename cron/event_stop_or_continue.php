@@ -4,7 +4,10 @@
  */
  
 if(isset($_GET['t'])) define('D', true);
-defined('D') or define('D', true);
+defined('D') or define('D', false);
+
+if(isset($_GET['tt'])) define('T', true);
+defined('T') or define('T', false);
 
 define('MODX_API_MODE', true);
 require_once dirname(dirname(dirname(dirname(dirname(__FILE__))))) . '/index.php';
@@ -48,8 +51,8 @@ if(D) {
 		// Профиль покупателя
 		$user_id= $_GET['id'];
 		$user = $modx->getObject('modUser', $user_id);
-		$profile=$user->getOne('Profile');
-		print $profile->get('fullname').PHP_EOL;
+//		$profile=$user->getOne('Profile');
+//		print $profile->get('fullname').PHP_EOL;
 		
 		if (!$msCustomerProfile = $modx->getObject('msCustomerProfile', array('id' => $user_id))) {
 			die('No customer profile');
@@ -73,20 +76,20 @@ if(D) {
         ))) {
             $objPAS->fromArray(array(
                 'active' => 1,
-                'stopdate' => $month,
+                'stopdate' => '2015-09-11 13:24:27',
             ));
             $res=$objPAS->save();
         }
         var_dump($res);
 
-        if($res) {
-            $res=false;
-            // Вычитание баланса
-            $msCustomerProfile->fromArray(array(
-                'account' => $arrProfile['account'] - $cost
-            ));
-            $res=$msCustomerProfile->save();
-        }
+//        if($res) {
+//            $res=false;
+//            // Вычитание баланса
+//            $msCustomerProfile->fromArray(array(
+//                'account' => $arrProfile['account'] - $cost
+//            ));
+//            $res=$msCustomerProfile->save();
+//        }
 
         die;
 	}
@@ -105,44 +108,86 @@ $data = $modx->getIterator('PaySeeList', $q);
 
 foreach ($data as $d) {
 	$pas = $d->toArray();
-	$subject = '';
-	if ($chunk = $modx->newObject('modChunk', array('snippet' => $modx->lexicon('pas_subject_stopdate')))){
-		$chunk->setCacheable(false);
-		$subject = $payandsee->processTags($chunk->process($pas));
-	}
-	$body = 'no chunk set';
-	if ($chunk = $modx->getObject('modChunk', $modx->getOption('payandsee_chunk_stopdate', null, 66))) {
-		$chunk->setCacheable(false);
-		$body = $payandsee->processTags($chunk->process($pas));
-	}
-	if (!empty($subject)) {
-		
-		$user = $modx->getObject('modUser', $pas['user_id']);
-		$profile=$user->getOne('Profile');
-		
-		$msprofile=$user->getOne('msProfile');
-		
-		if(D) {
-			print_r($msprofile->toArray());
-		}
-		
-		// письмо пользователю
-		$payandsee->addQueue($pas['user_id'], $subject, $body, '');
-		// смена статуса подписки на неактивную
-		if ($data_ = $modx->getObject('PaySeeList', array(
-			'resource_id' => $pas['resource_id'],
-			'user_id' => $pas['user_id'],
-		))) {
-			$data_->fromArray(array('active' => 0));
-			$data_->save();
-		}
-		// письмо менеджеру
-		$emails = array_map('trim', explode(',', $modx->getOption('payandsee_email_manager', null, $modx->getOption('emailsender'))));
-		foreach ($emails as $email) {
-			if (preg_match('/^[^@а-яА-Я]+@[^@а-яА-Я]+(?<!\.)\.[^\.а-яА-Я]{2,}$/m', $email)) {
-				$payandsee->addQueue('', $subject, $body, $email);
-			}
-		}
-	}
+    if(T) print_r($pas);
+
+    $user_id=$pas['user_id'];
+    //$user = $modx->getObject('modUser', $user_id);
+    $cost=$pas['pas_price'];
+
+    $arrProfile=null;
+    $msCustomerProfile = $modx->getObject('msCustomerProfile', array('id' => $user_id));
+
+    if (!empty($msCustomerProfile)){
+        $arrProfile=$msCustomerProfile->toArray();
+    }
+
+    if(T) print_r($arrProfile);
+
+    $money_enougth=$arrProfile['account']>=$cost;
+    $res=false;
+    if($money_enougth){
+        if(T) print("money_enougth\n");
+        // Авто продление
+        // смена статуса подписки на продлённую
+        $res=false;
+        if ($objPAS = $modx->getObject('PaySeeList', array(
+            'resource_id' => $pas['resource_id'],
+            'user_id' => $pas['user_id'],
+        ))) {
+            $objPAS->fromArray(array(
+                'active' => 1,
+                'stopdate' => $month,
+            ));
+            $res=$objPAS->save();
+        }
+
+        if($res) {
+            $res=false;
+            // Вычитание баланса
+            $msCustomerProfile->fromArray(array(
+                'account' => $arrProfile['account'] - $cost
+            ));
+            $res=$msCustomerProfile->save();
+        }
+
+    }
+
+    if(!$res)
+    {
+        // Остановка подписки
+        $subject = '';
+        if ($chunk = $modx->newObject('modChunk', array('snippet' => $modx->lexicon('pas_subject_stopdate')))){
+            $chunk->setCacheable(false);
+            $subject = $payandsee->processTags($chunk->process($pas));
+        }
+        $body = 'no chunk set';
+        if ($chunk = $modx->getObject('modChunk', $modx->getOption('payandsee_chunk_stopdate', null, 66))) {
+            $chunk->setCacheable(false);
+            $body = $payandsee->processTags($chunk->process($pas));
+        }
+        if (!empty($subject)) {
+            $user = $modx->getObject('modUser', $pas['user_id']);
+            $profile=$user->getOne('Profile');
+
+            // письмо пользователю
+            $payandsee->addQueue($pas['user_id'], $subject, $body, $profile->get('email'));
+            // смена статуса подписки на неактивную
+            if ($data_ = $modx->getObject('PaySeeList', array(
+                'resource_id' => $pas['resource_id'],
+                'user_id' => $pas['user_id'],
+            ))) {
+                $data_->fromArray(array('active' => 0));
+                $data_->save();
+            }
+            // письмо менеджеру
+            $emails = array_map('trim', explode(',', $modx->getOption('payandsee_email_manager', null, $modx->getOption('emailsender'))));
+            foreach ($emails as $email) {
+                if (preg_match('/^[^@а-яА-Я]+@[^@а-яА-Я]+(?<!\.)\.[^\.а-яА-Я]{2,}$/m', $email)) {
+                    $payandsee->addQueue('', $subject, $body, $email);
+                }
+            }
+        }
+
+    }
 
 }
