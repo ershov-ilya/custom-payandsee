@@ -38,29 +38,29 @@ $data = $modx->getIterator('PaySeeList', $q);
 $modx->lexicon->load('payandsee:default');
 
 foreach ($data as $d) {
-	$pls = $d->toArray();
+	$pas = $d->toArray();
 	$subject = '';
 	if ($chunk = $modx->newObject('modChunk', array('snippet' => $modx->lexicon('pas_subject_notify')))){
 		$chunk->setCacheable(false);
-		$subject = $payandsee->processTags($chunk->process($pls));
+		$subject = $payandsee->processTags($chunk->process($pas));
 	}
 	$body = 'no chunk set';
 	if ($chunk = $modx->getObject('modChunk', $modx->getOption('payandsee_chunk_notify', null, 66))) {
 		$chunk->setCacheable(false);
-		$body = $payandsee->processTags($chunk->process($pls));
+		$body = $payandsee->processTags($chunk->process($pas));
 	}
 	if (!empty($subject)) {
-		$user = $modx->getObject('modUser', $pls['user_id']);
+		$user = $modx->getObject('modUser', $pas['user_id']);
 		$profile=$user->getOne('Profile');
 		
 		// письмо пользователю
-		$payandsee->addQueue($pls['user_id'], $subject, $body, $profile->get('email'));
+		$payandsee->addQueue($pas['user_id'], $subject, $body, $profile->get('email'));
 		
 		// смена статуса подписки на неактивную
 		/*
 		if ($data_ = $modx->getObject('PaySeeList', array(
-			'resource_id' => $pls['resource_id'],
-			'user_id' => $pls['user_id'],
+			'resource_id' => $pas['resource_id'],
+			'user_id' => $pas['user_id'],
 		))) {
 			$data_->fromArray(array('active' => 0));
 			$data_->save();
