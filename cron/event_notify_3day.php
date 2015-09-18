@@ -39,42 +39,57 @@ $modx->lexicon->load('payandsee:default');
 
 foreach ($data as $d) {
 	$pas = $d->toArray();
-	$subject = '';
-	if ($chunk = $modx->newObject('modChunk', array('snippet' => $modx->lexicon('pas_subject_notify')))){
-		$chunk->setCacheable(false);
-		$subject = $payandsee->processTags($chunk->process($pas));
-	}
-	$body = 'no chunk set';
-	if ($chunk = $modx->getObject('modChunk', $modx->getOption('payandsee_chunk_notify', null, 66))) {
-		$chunk->setCacheable(false);
-		$body = $payandsee->processTags($chunk->process($pas));
-	}
-	if (!empty($subject)) {
-		$user = $modx->getObject('modUser', $pas['user_id']);
-		$profile=$user->getOne('Profile');
-		
-		// письмо пользователю
-		$payandsee->addQueue($pas['user_id'], $subject, $body, $profile->get('email'));
-		
-		// смена статуса подписки на неактивную
-		/*
-		if ($data_ = $modx->getObject('PaySeeList', array(
-			'resource_id' => $pas['resource_id'],
-			'user_id' => $pas['user_id'],
-		))) {
-			$data_->fromArray(array('active' => 0));
-			$data_->save();
-		}
-		*/
-		
-		// письмо менеджеру
-		$emails = array_map('trim', explode(',', $modx->getOption('payandsee_email_manager', null, $modx->getOption('emailsender'))));
-		foreach ($emails as $email) {
-			if (preg_match('/^[^@а-яА-Я]+@[^@а-яА-Я]+(?<!\.)\.[^\.а-яА-Я]{2,}$/m', $email)) {
-				$payandsee->addQueue('', $subject, $body, $email);
-			}
-		}
-		
-	}
+
+    $user_id=$pas['user_id'];
+    $cost=$pas['pas_price'];
+
+    $arrProfile=null;
+    $msCustomerProfile = $modx->getObject('msCustomerProfile', array('id' => $user_id));
+    if (!empty($msCustomerProfile)){
+        $arrProfile=$msCustomerProfile->toArray();
+    }
+
+    $money_enougth=$arrProfile['account']>=$cost;
+    $res=false;
+    if(!$money_enougth){
+        $subject = '';
+        if ($chunk = $modx->newObject('modChunk', array('snippet' => $modx->lexicon('pas_subject_notify')))){
+            $chunk->setCacheable(false);
+            $subject = $payandsee->processTags($chunk->process($pas));
+        }
+        $body = 'no chunk set';
+        if ($chunk = $modx->getObject('modChunk', $modx->getOption('payandsee_chunk_notify', null, 66))) {
+            $chunk->setCacheable(false);
+            $body = $payandsee->processTags($chunk->process($pas));
+        }
+        if (!empty($subject)) {
+            $user = $modx->getObject('modUser', $pas['user_id']);
+            $profile=$user->getOne('Profile');
+
+            // письмо пользователю
+            $payandsee->addQueue($pas['user_id'], $subject, $body, $profile->get('email'));
+
+            // смена статуса подписки на неактивную
+            /*
+            if ($data_ = $modx->getObject('PaySeeList', array(
+                'resource_id' => $pas['resource_id'],
+                'user_id' => $pas['user_id'],
+            ))) {
+                $data_->fromArray(array('active' => 0));
+                $data_->save();
+            }
+            */
+
+            // письмо менеджеру
+            $emails = array_map('trim', explode(',', $modx->getOption('payandsee_email_manager', null, $modx->getOption('emailsender'))));
+            foreach ($emails as $email) {
+                if (preg_match('/^[^@а-яА-Я]+@[^@а-яА-Я]+(?<!\.)\.[^\.а-яА-Я]{2,}$/m', $email)) {
+                    $payandsee->addQueue('', $subject, $body, $email);
+                }
+            }
+
+        }
+    }
+
 
 }

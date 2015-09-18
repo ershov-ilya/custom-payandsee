@@ -108,25 +108,18 @@ $data = $modx->getIterator('PaySeeList', $q);
 
 foreach ($data as $d) {
 	$pas = $d->toArray();
-    if(T) print_r($pas);
-
     $user_id=$pas['user_id'];
-    //$user = $modx->getObject('modUser', $user_id);
     $cost=$pas['pas_price'];
 
     $arrProfile=null;
     $msCustomerProfile = $modx->getObject('msCustomerProfile', array('id' => $user_id));
-
     if (!empty($msCustomerProfile)){
         $arrProfile=$msCustomerProfile->toArray();
     }
 
-    if(T) print_r($arrProfile);
-
     $money_enougth=$arrProfile['account']>=$cost;
     $res=false;
     if($money_enougth){
-        if(T) print("money_enougth\n");
         // Авто продление
         // смена статуса подписки на продлённую
         $res=false;
