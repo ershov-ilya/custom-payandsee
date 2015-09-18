@@ -51,7 +51,7 @@ foreach ($data as $d) {
 
     $money_enougth=$arrProfile['account']>=$cost;
     $res=false;
-    if($money_enougth){
+    if(!$money_enougth){
         $subject = '';
         if ($chunk = $modx->newObject('modChunk', array('snippet' => $modx->lexicon('pas_subject_notify')))){
             $chunk->setCacheable(false);
